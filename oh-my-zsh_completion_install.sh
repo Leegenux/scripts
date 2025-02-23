@@ -95,19 +95,35 @@ install_autocompletion_plugins() {
 configure_zshrc() {
   echo "配置 ~/.zshrc 文件以启用插件..."
   ZSH_PLUGINS="git zsh-autosuggestions zsh-syntax-highlighting zsh-autocomplete"
+  PLUGIN_LINE="plugins=(${ZSH_PLUGINS})"
 
+  # 检查 plugins=(...) 行是否已存在
   if fgrep -q "plugins=(" ~/.zshrc; then
+    echo "plugins=(...) 行已存在，替换为新的插件列表。"
     if [[ "$(uname -s)" == "Darwin" ]]; then
       sed_i_option="-i ''"
     else
       sed_i_option="-i"
     fi
-    sed "$sed_i_option" "s/plugins=(.*)/plugins=(${ZSH_PLUGINS})/" ~/.zshrc
+    sed "$sed_i_option" "s/plugins=(.*)/${PLUGIN_LINE}/" ~/.zshrc
   else
-    echo "plugins=(${ZSH_PLUGINS})" >> ~/.zshrc
+    echo "plugins=(...) 行不存在，添加到 ~/.zshrc 文件开头。"
+    # 尝试在 oh-my-zsh 初始化代码之前添加，如果找不到，则添加到文件开头
+    if grep -q "source \$ZSH/oh-my-zsh.sh" ~/.zshrc; then
+      if [[ "$(uname -s)" == "Darwin" ]]; then
+        sed_i_option="-i ''"
+      else
+        sed_i_option="-i"
+      fi
+      sed "$sed_i_option" "0,/source \$ZSH\/oh-my-zsh.sh/s/^/${PLUGIN_LINE}\n/" ~/.zshrc
+    else
+      echo "${PLUGIN_LINE}" > temp_zshrc.tmp
+      cat ~/.zshrc >> temp_zshrc.tmp
+      mv temp_zshrc.tmp ~/.zshrc
+    fi
   fi
 
-  echo "插件已添加到 ~/.zshrc 文件。"
+  echo "插件已配置到 ~/.zshrc 文件。"
 }
 
 # 函数：配置 oh-my-zsh 主题
