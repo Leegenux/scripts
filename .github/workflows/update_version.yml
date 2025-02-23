@@ -1,13 +1,20 @@
-# .github/workflows/update_version.yml
 name: Update EasyTier Install Script Version
 
 on:
   schedule:
     - cron: '0 0 * * *'  # 每天 UTC 00:00 运行 (每天早上 8 点 北京时间)
-  # 可以根据需要调整触发时间，例如每周运行： '0 0 * * 0' (每周日)
-  # 或者使用 release 事件触发：
-  #  release:
-  #    types: [published]
+  workflow_dispatch: # 添加 workflow_dispatch 触发器，允许手动触发
+    # (可选) 可以定义 inputs，如果需要手动触发时传入参数
+    # inputs:
+    #   logLevel:
+    #     description: 'Log level to use'
+    #     required: true
+    #     default: 'info'
+    #     type: choice
+    #     options:
+    #       - info
+    #       - warning
+    #       - debug
 
 jobs:
   update-version:
