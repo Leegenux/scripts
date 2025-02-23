@@ -1,0 +1,38 @@
+# .github/workflows/update_version.yml
+name: Update EasyTier Install Script Version
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # 每天 UTC 00:00 运行 (每天早上 8 点 北京时间)
+  # 可以根据需要调整触发时间，例如每周运行： '0 0 * * 0' (每周日)
+  # 或者使用 release 事件触发：
+  #  release:
+  #    types: [published]
+
+jobs:
+  update-version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Get latest release tag
+        id: get_latest_release
+        run: |
+          LATEST_RELEASE_INFO=$(curl -s "https://api.github.com/repos/EasyTier/EasyTier/releases/latest")
+          LATEST_VERSION=$(echo "$LATEST_RELEASE_INFO" | jq -r '.tag_name')
+          if [ -z "$LATEST_VERSION" ]; then
+            echo "::error::Failed to get latest release version from GitHub API"
+            exit 1
+          fi
+          echo "LATEST_VERSION=$LATEST_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Update version in script
+        run: |
+          sed -i "s/LATEST_VERSION=\"v[0-9.]*\"/LATEST_VERSION=\"${{ steps.get_latest_release.outputs.LATEST_VERSION }}\"/" easytier_install_linux.sh
+
+      - name: Commit and push changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Update EasyTier install script to latest version ${{ steps.get_latest_release.outputs.LATEST_VERSION }}"
+          branch: main # 或您的主分支名称
