@@ -115,85 +115,52 @@ configure_zsh_theme() {
   echo "配置 oh-my-zsh 主题..."
   echo "您可以通过修改 ~/.zshrc 文件中的 ZSH_THEME 变量来更改主题。"
   echo "默认主题是 'robbyrussell'。"
-
-  # 常用主题列表 (更新自 Oh My Zsh Themes Wiki)
-  declare -A theme_options=(
-    [1]="robbyrussell"       # 默认主题，保持不变
-    [2]="agnoster"          # 流行的 powerline 风格主题
-    [3]="spaceship"         # 功能强大的主题，信息丰富
-    [4]="powerlevel10k/powerlevel10k" # 非常流行的高度可定制主题 (需要单独安装 powerlevel10k)
-    [5]="avocado"           # 简洁美观的主题
-    [6]="ys"                # 另一个简洁的主题
-    [7]="zsh- শিল্পের-theme"   #  一个现代感的主题 (themes wiki 上 ' শিল্পীর'  实际是 ' শিল্পীর-theme')
-    [8]="lambda"            #  简洁的 lambda 提示符
-    [9]="minimal"           #  极简主题
-    [10]="clean"            #  非常干净的主题
-  )
-
-  if [[ -z "${theme_options[@]}" ]]; then
-    echo "警告：主题选项数组未正确初始化。"
-    return
-  fi
-
   echo "您可以选择以下常用主题 (输入数字选择，或输入主题名称自定义):"
-  local sorted_keys
-  sorted_keys=($(printf "%s\n" "${(@k)theme_options}" | sort -n)) # 获取键并数值排序
-
-  for key in "${sorted_keys[@]}"; do
-    echo "  $key. ${theme_options[$key]}"
-  done
+  echo "  1. robbyrussell"
+  echo "  2. agnoster"
+  echo "  3. spaceship"
+  echo "  4. powerlevel10k/powerlevel10k"
+  echo "  5. avocado"
+  echo "  6. ys"
+  echo "  7. zsh- শিল্পের-theme"
+  echo "  8. lambda"
+  echo "  9. minimal"
+  echo "  10. clean"
   echo "  c. 自定义主题名称"
 
-  read theme_choice_input
-
-  theme_choice="$theme_choice_input"
+  echo -n "请选择主题 (输入数字或 'c' 自定义): "
+  read theme_choice
 
   case "$theme_choice" in
-    [1-9]|10) #  修改匹配数字的范围，包括 10
-      chosen_theme="${theme_options[$theme_choice]}"
-      echo "将主题设置为 $chosen_theme ..."
-      if [[ "$(uname -s)" == "Darwin" ]]; then
-        sed_i_option="-i ''"
-      else
-        sed_i_option="-i"
-      fi
-      sed "$sed_i_option" "s/^ZSH_THEME=\"[^\"]*\"/ZSH_THEME=\"${chosen_theme}\"/" ~/.zshrc
-      echo "主题已更改为 $chosen_theme。"
+    1) theme="robbyrussell";;
+    2) theme="agnoster";;
+    3) theme="spaceship";;
+    4) theme="powerlevel10k/powerlevel10k";;
+    5) theme="avocado";;
+    6) theme="ys";;
+    7) theme="zsh- শিল্পের-theme";;
+    8) theme="lambda";;
+    9) theme="minimal";;
+    10) theme="clean";;
+    c|C) # 处理自定义主题
+      echo -n "请输入自定义主题名称: "
+      read custom_theme_name
+      theme="$custom_theme_name"
       ;;
-    c|C)
-      read -p "请输入您想要使用的主题名称 (例如 'agnoster'): " custom_theme
-      if [[ -n "$custom_theme" ]]; then
-        echo "将主题设置为 $custom_theme ..."
-        if [[ "$(uname -s)" == "Darwin" ]]; then
-          sed_i_option="-i ''"
-        else
-          sed_i_option="-i"
-        fi
-        sed "$sed_i_option" "s/^ZSH_THEME=\"[^\"]*\"/ZSH_THEME=\"${custom_theme}\"/" ~/.zshrc
-        echo "主题已更改为 $custom_theme。您可以在 https://github.com/ohmyzsh/ohmyzsh/wiki/Themes 查看更多主题。"
-      else
-        echo "主题名称为空，将使用默认主题 'robbyrussell'。"
-      fi
-      ;;
-    y|Y) # 保持之前的自定义主题逻辑，如果用户输入 y 但不选择数字或 'c'，则进入自定义主题输入
-      read -p "请输入您想要使用的主题名称 (例如 'agnoster'): " custom_theme
-      if [[ -n "$custom_theme" ]]; then
-        echo "将主题设置为 $custom_theme ..."
-        if [[ "$(uname -s)" == "Darwin" ]]; then
-          sed_i_option="-i ''"
-        else
-          sed_i_option="-i"
-        fi
-        sed "$sed_i_option" "s/^ZSH_THEME=\"[^\"]*\"/ZSH_THEME=\"${custom_theme}\"/" ~/.zshrc
-        echo "主题已更改为 $custom_theme。您可以在 https://github.com/ohmyzsh/ohmyzsh/wiki/Themes 查看更多主题。"
-      else
-        echo "主题名称为空，将使用默认主题 'robbyrussell'。"
-      fi
-      ;;
-    *)
-      echo "使用默认主题 'robbyrussell'。"
+    *) # 默认情况或输入错误
+      theme="robbyrussell"; # 默认主题
+      echo "无效的选择，使用默认主题 'robbyrussell'。"
       ;;
   esac
+
+  echo "使用主题 '$theme'."
+
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    sed_i_option="-i ''"
+  else
+    sed_i_option="-i"
+  fi
+  sed "$sed_i_option" "s/^ZSH_THEME=.*$/ZSH_THEME=\"${theme}\"/g" ~/.zshrc
 }
 
 # 主程序流程
