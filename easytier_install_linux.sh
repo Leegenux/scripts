@@ -79,8 +79,10 @@ echo
 sudo tee /etc/systemd/system/easytier.service > /dev/null <<EOF
 [Unit]
 Description=EasyTier Service
-After=network.target syslog.target
-Wants=network.target
+After=network-online.target network.target syslog.target time-sync.target
+Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
 
 [Service]
 Type=simple
@@ -88,6 +90,10 @@ ExecStart=$HOME/easytier/easytier-core --ipv4 ${IP_ADDRESS} \
     --network-name ${NETWORK_NAME} \
     --network-secret ${NETWORK_SECRET} \
     -p tcp://public.easytier.cn:11010
+Restart=always
+RestartSec=10
+TimeoutStartSec=60
+TimeoutStopSec=60
 
 [Install]
 WantedBy=multi-user.target
