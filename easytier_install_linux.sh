@@ -13,101 +13,78 @@ if [ -f "$HOME/easytier/easytier-core" ]; then
     echo "继续重新安装，现有 ~/easytier 目录将被覆盖。"
 fi
 
-# 检查 wget 是否安装
-if ! command -v wget &> /dev/null
-then
-    echo "错误: wget 未安装。请先安装 wget。"
-    exit 1
-fi
-
-# 检查 unzip 是否安装
-if ! command -v unzip &> /dev/null
-then
-    echo "错误: unzip 未安装。请先安装 unzip。"
-    exit 1
-fi
-
-# 检查 jq 是否安装 (用于 JSON 解析，但现在可能不需要严格依赖)
-if ! command -v jq &> /dev/null
-then
-    echo "警告: jq 未安装。HTML 解析方式对 jq 的依赖性降低，但推荐安装以便未来可能的功能增强。"
-fi
-
-# **已移除动态获取版本号的逻辑，现在使用固定版本号**
-LATEST_VERSION="v2.2.4"  # **固定版本号，需要通过 CI 定期更新**
-echo "使用固定版本号: $LATEST_VERSION"
-
-# 构造下载链接 (假设文件名格式不变)
-DOWNLOAD_URL="https://github.com/EasyTier/EasyTier/releases/download/${LATEST_VERSION}/easytier-linux-x86_64-${LATEST_VERSION}.zip"
-echo "下载链接 (固定版本): $DOWNLOAD_URL"
-
-# Download and extract EasyTier
-PACKAGE_NAME="easytier-linux-x86_64-${LATEST_VERSION}.zip"
-wget "$DOWNLOAD_URL" -O "$PACKAGE_NAME"
-if [ ! -f "$PACKAGE_NAME" ]; then
-    echo "错误: 下载 EasyTier 软件包失败。"
-    exit 1
-fi
-
-unzip "$PACKAGE_NAME" -d ~/
-mkdir -p ~/easytier
-mv ~/easytier-linux-x86_64/* ~/easytier
-rm -rf ~/easytier-linux-x86_64
-# Clean up downloaded zip file
-rm "$PACKAGE_NAME"
-
-# Get IPv4 address from user
-while true; do
-    read -p "请输入 EasyTier 的 IPv4 地址: " IP_ADDRESS
-    # 验证 IPv4 地址格式 (简单的正则表达式)
-    if [[ "$IP_ADDRESS" =~ ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$ ]]; then
-        break
-    else
-        echo "无效的 IPv4 地址格式。请重新输入。"
+# 检查必要依赖
+for dep in wget unzip; do
+    if ! command -v $dep &> /dev/null; then
+        echo "错误: $dep 未安装。请先安装 $dep。"
+        exit 1
     fi
 done
 
-# Get network secret from user
-read -p "请输入 EasyTier 的网络密钥 (network secret): " NETWORK_SECRET
-echo
+# 使用固定版本号
+LATEST_VERSION="v2.3.1"
+echo "使用固定版本号: $LATEST_VERSION"
 
-# Get network name from user
-read -p "请输入 EasyTier 的网络名称 (network name): " NETWORK_NAME
-echo
+# 下载并解压 EasyTier
+DOWNLOAD_URL="https://github.com/EasyTier/EasyTier/releases/download/${LATEST_VERSION}/easytier-linux-x86_64-${LATEST_VERSION}.zip"
+PACKAGE_NAME="easytier-linux-x86_64-${LATEST_VERSION}.zip"
 
-# Create systemd service
+echo "正在下载 EasyTier..."
+wget -q --show-progress "$DOWNLOAD_URL" -O "$PACKAGE_NAME" || {
+    echo "错误: 下载 EasyTier 软件包失败。"
+    exit 1
+}
+
+echo "正在解压安装包..."
+unzip -q "$PACKAGE_NAME" -d ~/
+mkdir -p ~/easytier
+mv ~/easytier-linux-x86_64/* ~/easytier
+rm -rf ~/easytier-linux-x86_64
+rm -f "$PACKAGE_NAME"
+
+# 获取 USER_TOKEN
+while true; do
+    echo "温馨提示：USER_TOKEN 是访问 EasyTier 网络所需的唯一密钥"
+    read -p "请输入您的 USER_TOKEN: " USER_TOKEN
+    if [ -n "$USER_TOKEN" ]; then
+        break
+    else
+        echo "错误: USER_TOKEN 不能为空，请重新输入。"
+    fi
+done
+
+# 创建 systemd 服务
+echo "正在创建系统服务..."
 sudo tee /etc/systemd/system/easytier.service > /dev/null <<EOF
 [Unit]
 Description=EasyTier Service
-After=network-online.target network.target syslog.target time-sync.target
-Wants=network-online.target
-StartLimitIntervalSec=300
-StartLimitBurst=5
+After=network.target
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple
-ExecStart=$HOME/easytier/easytier-core --ipv4 ${IP_ADDRESS} \
-    --network-name ${NETWORK_NAME} \
-    --network-secret ${NETWORK_SECRET} \
-    -p tcp://public.easytier.cn:11010
+ExecStart=$HOME/easytier/easytier-core -w $USER_TOKEN
 Restart=always
-RestartSec=10
-TimeoutStartSec=60
-TimeoutStopSec=60
+RestartSec=5
+User=$(id -un)
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
-# Enable and start service
+# 启用并启动服务
 sudo systemctl daemon-reload
-if ! sudo systemctl enable easytier; then
-    echo "启用 easytier 服务失败。"
-    exit 1
-fi
-if ! sudo systemctl restart easytier; then
-    echo "启动 easytier 服务失败。"
-    exit 1
-fi
+sudo systemctl restart easytier
+sudo systemctl enable easytier
 
-echo "EasyTier 安装完成!"
+# 检查服务状态
+if systemctl is-active --quiet easytier; then
+    echo -e "\n\033[32mEasyTier 安装成功！服务正在运行。\033[0m"
+    echo -e "您可以使用以下命令管理服务:"
+    echo -e "  sudo systemctl restart easytier   # 重启服务"
+    echo -e "  sudo systemctl stop easytier      # 停止服务"
+    echo -e "  sudo journalctl -u easytier -f    # 查看日志"
+else
+    echo -e "\n\033[31m错误: EasyTier 服务启动失败。请检查日志: 'journalctl -u easytier -f'\033[0m"
+    exit 1
+fi
