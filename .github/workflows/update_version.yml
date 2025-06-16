@@ -3,43 +3,82 @@ name: Update EasyTier Install Script Version
 on:
   schedule:
     - cron: '0 0 * * *'  # 每天 UTC 00:00 运行 (每天早上 8 点 北京时间)
-  workflow_dispatch: # 添加 workflow_dispatch 触发器，允许手动触发
-    # (可选) 可以定义 inputs，如果需要手动触发时传入参数
-    # inputs:
-    #   logLevel:
-    #     description: 'Log level to use'
-    #     required: true
-    #     default: 'info'
-    #     type: choice
-    #     options:
-    #       - info
-    #       - warning
-    #       - debug
+  workflow_dispatch:
+
+# 设置工作流权限
+permissions:
+  contents: write  # 允许推送更改
 
 jobs:
   update-version:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}  # 使用具有写权限的token
+          fetch-depth: 0  # 获取完整历史记录，用于diff检查
 
       - name: Get latest release tag
         id: get_latest_release
         run: |
+          # 获取最新版本并验证
           LATEST_RELEASE_INFO=$(curl -s "https://api.github.com/repos/EasyTier/EasyTier/releases/latest")
           LATEST_VERSION=$(echo "$LATEST_RELEASE_INFO" | jq -r '.tag_name')
+          
           if [ -z "$LATEST_VERSION" ]; then
             echo "::error::Failed to get latest release version from GitHub API"
             exit 1
           fi
+          
+          # 检查版本格式是否正确 (vX.X.X)
+          if [[ ! "$LATEST_VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Invalid version format: $LATEST_VERSION"
+            exit 1
+          fi
+          
           echo "LATEST_VERSION=$LATEST_VERSION" >> "$GITHUB_OUTPUT"
+          echo "::notice::Latest EasyTier version: $LATEST_VERSION"
 
       - name: Update version in script
+        id: update_script
         run: |
+          # 备份原始文件用于比较
+          cp easytier_install_linux.sh easytier_install_linux.sh.bak
+          
+          # 更新版本号
           sed -i "s/LATEST_VERSION=\"v[0-9.]*\"/LATEST_VERSION=\"${{ steps.get_latest_release.outputs.LATEST_VERSION }}\"/" easytier_install_linux.sh
+          
+          # 检查是否有实际更改
+          if diff -q easytier_install_linux.sh easytier_install_linux.sh.bak > /dev/null; then
+            echo "::notice::No changes detected in the script"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::Script updated with new version"
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+          
+          # 清理备份
+          rm easytier_install_linux.sh.bak
+
+      - name: Verify changes
+        if: steps.update_script.outputs.changed == 'true'
+        run: |
+          # 验证版本号已正确更新
+          grep -q "LATEST_VERSION=\"${{ steps.get_latest_release.outputs.LATEST_VERSION }}\"" easytier_install_linux.sh
+          if [ $? -ne 0 ]; then
+            echo "::error::Version update verification failed!"
+            exit 1
+          fi
+          echo "::notice::Version update verified successfully"
 
       - name: Commit and push changes
+        if: steps.update_script.outputs.changed == 'true'
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "Update EasyTier install script to latest version ${{ steps.get_latest_release.outputs.LATEST_VERSION }}"
-          branch: main # 或您的主分支名称
+          branch: main
+          commit_user_name: "GitHub Actions"
+          commit_user_email: "actions@users.noreply.github.com"
+          commit_author: "GitHub Actions <actions@users.noreply.github.com>"
+          add_options: '--all'  # 确保添加所有更改的文件
