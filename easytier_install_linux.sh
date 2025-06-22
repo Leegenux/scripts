@@ -22,7 +22,7 @@ for dep in wget unzip; do
 done
 
 # 使用固定版本号
-LATEST_VERSION="v2.3.1"
+LATEST_VERSION="v2.3.2"
 echo "使用固定版本号: $LATEST_VERSION"
 
 # 下载并解压 EasyTier
