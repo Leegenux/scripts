@@ -66,7 +66,7 @@ Type=simple
 ExecStart=$HOME/easytier/easytier-core -w $USER_TOKEN
 Restart=always
 RestartSec=5
-User=$(id -un)
+User=root
 
 [Install]
 WantedBy=multi-user.target
