@@ -22,7 +22,7 @@ for dep in wget unzip; do
 done
 
 # 使用固定版本号
-LATEST_VERSION="v2.3.2"
+LATEST_VERSION="v2.4.2"
 echo "使用固定版本号: $LATEST_VERSION"
 
 # 下载并解压 EasyTier
@@ -88,3 +88,4 @@ else
     echo -e "\n\033[31m错误: EasyTier 服务启动失败。请检查日志: 'journalctl -u easytier -f'\033[0m"
     exit 1
 fi
+
